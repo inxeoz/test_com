@@ -1,114 +1,75 @@
 
+#include "logic.h"
+#include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Module.h>
+#include <llvm/Support/raw_ostream.h>
+#include <llvm/IR/Verifier.h>
 #include <iostream>
 #include <fstream>
-#include <string>
-#include <stdexcept>
-#include <llvm/IR/IRBuilder.h>
-#include <llvm/IR/Module.h>
-#include <llvm/IR/LLVMContext.h>
-#include <llvm/ExecutionEngine/ExecutionEngine.h>
-#include <llvm/ExecutionEngine/Orc/ExecutionUtils.h>  // For execution utilities in Orc
-#include "ast.h"
-
+#include <sstream>
 
 using namespace llvm;
 
-LLVMContext Context;
-IRBuilder<> Builder(Context);
-std::unique_ptr<Module> TheModule = std::make_unique<Module>("my_module", Context);
-
-// Generates LLVM IR based on AST
-Value* generateLLVMCode(const AST* node) {
-    if (const auto* number = dynamic_cast<const Number*>(node)) {
-        return ConstantInt::get(Context, APInt(32, number->value));
-    }
-
-    if (const auto* binOp = dynamic_cast<const BinOp*>(node)) {
-        Value* left = generateLLVMCode(binOp->left.get());
-        Value* right = generateLLVMCode(binOp->right.get());
-
-        switch (binOp->operation) {
-            case TokenType::ADD: return Builder.CreateAdd(left, right, "add");
-            case TokenType::SUB: return Builder.CreateSub(left, right, "sub");
-            case TokenType::MULT: return Builder.CreateMul(left, right, "mul");
-            case TokenType::DIV: return Builder.CreateSDiv(left, right, "div");
-            default: throw std::invalid_argument("unexpected operator in LLVM code generation");
-        }
-    }
-
-    throw std::invalid_argument("unexpected node in AST");
-}
-
-// Compiles and runs the code dynamically
-void compileAndRun(std::unique_ptr<AST> ast) {
-    if (!ast) {
-        std::cerr << "Error: AST is null!" << std::endl;
-        return;
-    }
-
-    FunctionType* funcType = FunctionType::get(Type::getInt32Ty(Context), false);
-    Function* mainFunc = Function::Create(funcType, Function::ExternalLinkage, "main", TheModule.get());
-    BasicBlock* entry = BasicBlock::Create(Context, "entry", mainFunc);
-    Builder.SetInsertPoint(entry);
-
-    Value* result = generateLLVMCode(ast.get());
-    Builder.CreateRet(result);
-
-    std::string errStr;
-    ExecutionEngine* EE = EngineBuilder(std::move(TheModule))
-        .setErrorStr(&errStr)
-        .create();
-
-    if (!EE) {
-        std::cerr << "Error creating execution engine: " << errStr << std::endl;
-        return;
-    }
-
-    EE->finalizeObject();
-    auto mainFuncPtr = reinterpret_cast<int(*)()>(EE->getFunctionAddress("main"));
-    if (!mainFuncPtr) {
-        std::cerr << "Error: Could not find function 'main'" << std::endl;
-        return;
-    }
-
-    std::cout << "Result: " << mainFuncPtr() << std::endl;
-}
-
-
-
-int main(int argc, char** argv) {
-    if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <filename>" << std::endl;
+int main(int argc, char* argv[]) {
+    if (argc != 2) {
+        std::cerr << "Usage: " << argv[0] << " <filename>\n";
         return 1;
     }
 
     std::ifstream file(argv[1]);
-    if (!file.is_open()) {
-        std::cerr << "Error: Could not open file " << argv[1] << std::endl;
+    if (!file) {
+        std::cerr << "Error: Could not open file " << argv[1] << "\n";
         return 1;
     }
 
-    std::string code((std::istreambuf_iterator(file)), std::istreambuf_iterator<char>());
-    file.close();
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    std::string input = buffer.str();
 
-    try {
-        Parser parser(code);
-        auto statements = parser.parse();
+    Parser parser(input);
+    auto ast = parser.parse();
 
-        for (const auto& stmt : statements) {
-            printAST(stmt.get());
-            std::cout << "Result: " << calculate(stmt.get()) << std::endl;
-        }
-    } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
+
+
+
+    LLVMContext context;
+    Module module("my_module", context);
+    IRBuilder<> builder(context);
+
+    FunctionType* funcType = FunctionType::get(builder.getInt32Ty(), false);
+    Function* mainFunction = Function::Create(funcType, Function::ExternalLinkage, "main", module);
+    BasicBlock* entry = BasicBlock::Create(context, "entry", mainFunction);
+    builder.SetInsertPoint(entry);
+
+    Value* result = ast->codegen(builder);
+
+    // for (auto expr : ast) {
+    //     //Value* result = expr->codegen(builder);
+    //     // Optionally, print the result or store it for further use.
+    //     printf(expr);
+    // }
+
+    // Add printf declaration
+    FunctionType* printfType = FunctionType::get(builder.getInt32Ty(), builder.getInt8PtrTy(), true);
+    Function* printfFunc = Function::Create(printfType, Function::ExternalLinkage, "printf", module);
+
+    // Create format string
+    Value* formatStr = builder.CreateGlobalStringPtr("%d\n");
+
+    // Call printf with result
+    builder.CreateCall(printfFunc, {formatStr, result});
+
+    builder.CreateRet(builder.getInt32(0));
+
+    if (verifyModule(module, &errs())) {
+        std::cerr << "Module verification failed!\n";
         return 1;
     }
 
+    module.print(outs(), nullptr);
     return 0;
 }
 
 
-// TIP See CLion help at <a
-// href="https://www.jetbrains.com/help/clion/">jetbrains.com/help/clion/</a>.
-//  Also, you can try interactive lessons for CLion by selecting
-//  'Help | Learn IDE Features' from the main menu.
+
