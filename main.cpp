@@ -1,5 +1,3 @@
-#include <sys/types.h>   // For uid_t, gid_t, nlink_t
-#include <mutex>          // For std::mutex
 
 #include <iostream>
 #include <fstream>
@@ -90,7 +88,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    std::string code((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    std::string code((std::istreambuf_iterator(file)), std::istreambuf_iterator<char>());
     file.close();
 
     try {

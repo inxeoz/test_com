@@ -4,7 +4,6 @@
 #pragma once
 #ifndef AST_H
 #define AST_H
-#include <sys/types.h>   // For uid_t, gid_t, nlink_t
 #include <mutex>          // For std::mutex
 #include <iostream>
 #include <string>
