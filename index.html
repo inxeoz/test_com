@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Overview of the Code</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+        }
+        h1, h2 {
+            color: #4CAF50;
+        }
+        p {
+            margin-bottom: 1em;
+        }
+        code {
+            background-color: #f4f4f4;
+            padding: 5px;
+            font-size: 1.1em;
+        }
+    </style>
+</head>
+<body>
+<h1>Overview of the Code: Lexer, Parser, and Code Generation</h1>
+<p>The provided code is part of a basic compiler framework built with LLVM. It includes components for lexical analysis, parsing, and code generation. Here's an overview of the core components:</p>
+
+<h2>1. Tokenization</h2>
+<p>The lexer (in the `Lexer` class) takes an input string and breaks it down into tokens such as operators, numbers, and semicolons. These tokens represent the smallest units of meaningful code. For example, the lexer identifies the numbers and operators in an expression like "2 + 3".</p>
+
+<h2>2. Parsing</h2>
+<p>The `Parser` class is responsible for converting the sequence of tokens into an Abstract Syntax Tree (AST). The AST represents the hierarchical structure of the code, where nodes represent operations or values, and edges represent their relationships. The parser processes terms (numbers or operations) and expressions, handling precedence rules (multiplication/division before addition/subtraction).</p>
+
+<h2>3. Abstract Syntax Tree (AST)</h2>
+<p>The AST nodes (e.g., `Number` and `BinOp` classes) are used to build the structure of the code. For example, the expression "2 + 3 * 4" would be represented by a tree where the multiplication node comes before the addition node.</p>
+
+<h2>4. Code Generation</h2>
+<p>The AST nodes include a method to generate LLVM intermediate representation (IR). The IR is used by LLVM to generate machine code. For each operation in the AST, such as addition or multiplication, a corresponding LLVM IR instruction is generated using the `IRBuilder` class. The generated IR can be further compiled into executable code.</p>
+
+<h2>5. Debugging</h2>
+<p>Throughout the process, debugging information is logged to a file named `debug.log`. This is useful for tracking the code generation process and verifying that each step is working as expected.</p>
+</body>
+</html>

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Detailed Code Breakdown</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      margin: 20px;
+    }
+    h1, h2 {
+      color: #4CAF50;
+    }
+    pre {
+      background-color: #f4f4f4;
+      padding: 10px;
+      border: 1px solid #ddd;
+    }
+    code {
+      font-size: 1.1em;
+    }
+    p {
+      margin-bottom: 1em;
+    }
+  </style>
+</head>
+<body>
+<h1>Detailed Breakdown of the Code</h1>
+<h2>1. Lexer Class</h2>
+<p>The `Lexer` class is responsible for tokenizing the input string. It reads characters one by one and categorizes them into tokens.</p>
+<pre><code>
+    class Lexer {
+    public:
+        explicit Lexer(std::string text);
+        Token getNextToken();
+    private:
+        std::string input;
+        size_t pos = 0;
+    };
+    </code></pre>
+<p>The `getNextToken()` method returns a token based on the current character. It skips whitespaces and identifies numbers or operators. If an invalid character is found, an exception is thrown.</p>
+
+<h2>2. Token Class</h2>
+<p>The `Token` class represents a single token. Each token has a type (such as ADD, SUB) and an optional value (used for numbers).</p>
+<pre><code>
+    class Token {
+    public:
+        TokenType type;
+        int value;
+        explicit Token(const TokenType type);
+        Token(const TokenType type, const int value);
+    };
+    </code></pre>
+
+<h2>3. Parser Class</h2>
+<p>The `Parser` class reads tokens from the lexer and constructs an Abstract Syntax Tree (AST). It supports parsing expressions, terms, and factors.</p>
+<pre><code>
+    class Parser {
+    public:
+        explicit Parser(const std::string& text);
+        std::unique_ptr<std::vector<std::unique_ptr<AST>>> parse();
+    private:
+        Lexer lexer;
+        Token currentToken;
+        void eat(TokenType type);
+        std::unique_ptr<AST> factor();
+        std::unique_ptr<AST> term();
+        std::unique_ptr<AST> expr();
+    };
+    </code></pre>
+<p>The `expr()`, `term()`, and `factor()` methods correspond to different levels of precedence in mathematical expressions.</p>
+
+<h2>4. Abstract Syntax Tree (AST)</h2>
+<p>The AST represents the structure of the code, where each node corresponds to a part of the expression (e.g., a number or a binary operation). The `Number` class is used to represent literal values, while the `BinOp` class represents binary operations like addition or multiplication.</p>
+<pre><code>
+    class AST {
+    public:
+        virtual ~AST() = default;
+        virtual llvm::Value* codegen(llvm::IRBuilder<> &builder) = 0;
+    };
+    class Number : public AST {
+    public:
+        int value;
+        explicit Number(const int value);
+        llvm::Value* codegen(llvm::IRBuilder<> &builder) override;
+    };
+    class BinOp : public AST {
+    public:
+        std::unique_ptr<AST> left, right;
+        TokenType operation;
+        BinOp(std::unique_ptr<AST> left, const TokenType operation, std::unique_ptr<AST> right);
+        llvm::Value* codegen(llvm::IRBuilder<> &builder) override;
+    };
+    </code></pre>
+
+<h2>5. Code Generation</h2>
+<p>Each AST node has a `codegen` method that generates LLVM intermediate representation (IR). For binary operations, the appropriate LLVM instruction is created using `IRBuilder` (e.g., `CreateAdd`, `CreateSub`, `CreateMul`, `CreateSDiv`).</p>
+<pre><code>
+    llvm::Value* BinOp::codegen(llvm::IRBuilder<> &builder) {
+        llvm::Value* L = left->codegen(builder);
+        llvm::Value* R = right->codegen(builder);
+        switch (operation) {
+            case TokenType::ADD: return builder.CreateAdd(L, R, "addtmp");
+            case TokenType::SUB: return builder.CreateSub(L, R, "subtmp");
+            case TokenType::MULT: return builder.CreateMul(L, R, "multmp");
+            case TokenType::DIV: return builder.CreateSDiv(L, R, "divtmp");
+        }
+    }
+    </code></pre>
+
+<h2>6. Debugging</h2>
+<p>The code includes a helper function `save_output_to_debug()` that logs debugging information to a file called `debug.log`. This is useful for tracking the execution of the program and checking the intermediate steps.</p>
+<pre><code>
+    inline void save_output_to_debug(const std::string& value) {
+        if (std::ofstream log("debug.log", std::ios::app); log.is_open()) {
+            log << ";" << value << std::endl;
+        } else {
+            std::cerr << "Error opening debug.log for writing." << std::endl;
+        }
+    }
+    </code></pre>
+</body>
+</html>
