@@ -27,11 +27,8 @@ int main(int argc, char* argv[]) {
     buffer << file.rdbuf();
     std::string input = buffer.str();
 
-    Parser parser(input);
-    auto ast = parser.parse();
-
-
-
+    Parser Parser(input);
+    auto ast = Parser.parse();
 
     LLVMContext context;
     Module module("my_module", context);
