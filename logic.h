@@ -6,80 +6,11 @@
 #include <memory>
 #include <vector>
 #include <llvm/IR/IRBuilder.h>
-#include <llvm/IR/LLVMContext.h>
-#include <llvm/IR/Module.h>
-#include <llvm/Support/raw_ostream.h>
-
-// Token types
-enum class TokenType {
-    ADD, SUB, MULT, DIV, NUMBER, SEMI, END
-};
-
-// Token class
-class Token {
-public:
-    TokenType type;
-    int value;
-
-    Token(TokenType type) : type(type), value(0) {}
-    Token(TokenType type, int value) : type(type), value(value) {}
-};
-
-// Lexer class
-class Lexer {
-public:
-    Lexer(std::string text);
-    Token getNextToken();
-
-private:
-    std::string input;
-    size_t pos = 0;
-};
-
-// AST class and subclasses
-class AST {
-public:
-    virtual ~AST() = default;
-    virtual llvm::Value* codegen(llvm::IRBuilder<> &builder) = 0;
-};
-
-class Number : public AST {
-public:
-    int value;
-
-    Number(int value) : value(value) {}
-    llvm::Value* codegen(llvm::IRBuilder<> &builder) override;
-};
-
-class BinOp : public AST {
-public:
-    std::unique_ptr<AST> left, right;
-    TokenType operation;
-
-    BinOp(std::unique_ptr<AST> left, TokenType operation, std::unique_ptr<AST> right);
-    llvm::Value* codegen(llvm::IRBuilder<> &builder) override;
-};
-
-// Parser class
-class Parser {
-public:
-    Parser(const std::string& text);
-    std::unique_ptr<std::vector<std::unique_ptr<AST>>> parse();
-
-private:
-    Lexer lexer;
-    Token currentToken;
-
-    void eat(TokenType type);
-    std::unique_ptr<AST> factor();
-    std::unique_ptr<AST> term();
-    std::unique_ptr<AST> expr();
-};
+#include "definition.h"
 
 // Helper function to log output
 inline void save_output_to_debug(const std::string& value) {
-    std::ofstream log("debug.log", std::ios::app);
-    if (log.is_open()) {
+    if (std::ofstream log("debug.log", std::ios::app); log.is_open()) {
         log << ";" << value << std::endl;
     } else {
         std::cerr << "Error opening debug.log for writing." << std::endl;
@@ -87,7 +18,7 @@ inline void save_output_to_debug(const std::string& value) {
 }
 
 // TokenType to string for logging
-inline std::string getTokenString(TokenType type) {
+inline std::string getTokenString(const TokenType type) {
     switch (type) {
         case TokenType::ADD: return "ADD";
         case TokenType::SUB: return "SUB";
@@ -112,16 +43,16 @@ inline Token Lexer::getNextToken() {
             value = value * 10 + (input[pos] - '0');
             pos += 1;
         }
-        return Token(TokenType::NUMBER, value);
+        return {TokenType::NUMBER, value};
     }
 
     pos += 1;
     switch (currentChar) {
-        case '+': return Token(TokenType::ADD);
-        case '-': return Token(TokenType::SUB);
-        case '*': return Token(TokenType::MULT);
-        case '/': return Token(TokenType::DIV);
-        case ';': return Token(TokenType::SEMI);
+        case '+': return Token ( TokenType::ADD );
+        case '-': return Token ( TokenType::SUB);
+        case '*': return Token ( TokenType::MULT);
+        case '/': return Token ( TokenType::DIV);
+        case ';': return Token ( TokenType::SEMI);
         default:
             throw std::invalid_argument("Unexpected character: " + std::string(1, currentChar));
     }
@@ -133,7 +64,7 @@ inline llvm::Value* Number::codegen(llvm::IRBuilder<> &builder) {
 }
 
 // BinOp implementation
-inline BinOp::BinOp(std::unique_ptr<AST> left, TokenType operation, std::unique_ptr<AST> right)
+inline BinOp::BinOp(std::unique_ptr<AST> left, const TokenType operation, std::unique_ptr<AST> right)
     : left(std::move(left)), operation(operation), right(std::move(right)) {}
 
 inline llvm::Value* BinOp::codegen(llvm::IRBuilder<> &builder) {
@@ -141,7 +72,7 @@ inline llvm::Value* BinOp::codegen(llvm::IRBuilder<> &builder) {
     llvm::Value* L = left->codegen(builder);
 
     // Logging the binOp for debug
-    std::string binOpStr = "<binOp <" + getTokenString(operation) + ", " + std::to_string(reinterpret_cast<intptr_t>(L)) + ", " + std::to_string(reinterpret_cast<intptr_t>(R)) + ">>";
+    const std::string binOpStr = "<binOp <" + getTokenString(operation) + ", " + std::to_string(reinterpret_cast<intptr_t>(L)) + ", " + std::to_string(reinterpret_cast<intptr_t>(R)) + ">>";
     save_output_to_debug(binOpStr);
 
     switch (operation) {
@@ -172,7 +103,7 @@ inline std::unique_ptr<std::vector<std::unique_ptr<AST>>> Parser::parse() {
     return exprs;
 }
 
-inline void Parser::eat(TokenType type) {
+inline void Parser::eat(const TokenType type) {
     if (currentToken.type == type) {
         currentToken = lexer.getNextToken();
     } else {

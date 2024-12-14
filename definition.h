@@ -1,79 +1,75 @@
 #ifndef DEFINITION_H
 #define DEFINITION_H
-
 #include <llvm/IR/IRBuilder.h>
-#include <llvm/IR/LLVMContext.h>
-#include <llvm/IR/Module.h>
-#include <llvm/IR/Value.h>
-#include <llvm/Support/raw_ostream.h>
 #include <string>
 #include <memory>
-#include <vector>
-#include <stdexcept>
-#include <cctype>
 
-using namespace llvm;
 
-// Define TokenType enumeration for different types of tokens
+
+// Token types
 enum class TokenType {
-    NUMBER, ADD, SUB, MULT, DIV, SEMI, END
+    ADD, SUB, MULT, DIV, NUMBER, SEMI, END
 };
 
-// Token structure representing each individual token in the input
-struct Token {
+// Token class
+class Token {
+public:
     TokenType type;
     int value;
 
-    explicit Token(TokenType t, int v = 0) : type(t), value(v) {}
+    explicit Token(const TokenType type) : type(type), value(0) {}
+    Token(const TokenType type, const int value) : type(type), value(value) {}
 };
 
-// Lexer class to tokenize input string
+// Lexer class
 class Lexer {
-    std::string input;
-    size_t pos = 0;
-
 public:
     explicit Lexer(std::string text);
     Token getNextToken();
+
+private:
+    std::string input;
+    size_t pos = 0;
 };
 
-// Abstract base class for AST nodes
-struct AST {
+// AST class and subclasses
+class AST {
+public:
     virtual ~AST() = default;
-    virtual Value* codegen(IRBuilder<> &builder) = 0;
+    virtual llvm::Value* codegen(llvm::IRBuilder<> &builder) = 0;
 };
 
-// Number node representing an integer value
-struct Number final : AST {
+class Number : public AST {
+public:
     int value;
-    explicit Number(int v) : value(v) {}
-    Value* codegen(IRBuilder<> &builder) override;
+
+    explicit Number(const int value) : value(value) {}
+    llvm::Value* codegen(llvm::IRBuilder<> &builder) override;
 };
 
-// Binary operation node representing operations like addition, subtraction, etc.
-struct BinOp : AST {
-    std::unique_ptr<AST> left;
+class BinOp final : public AST {
+public:
+    std::unique_ptr<AST> left, right;
     TokenType operation;
-    std::unique_ptr<AST> right;
 
     BinOp(std::unique_ptr<AST> left, TokenType operation, std::unique_ptr<AST> right);
-    Value* codegen(IRBuilder<> &builder) override;
+    llvm::Value* codegen(llvm::IRBuilder<> &builder) override;
 };
 
-// Parser class to parse the input into an AST
+// Parser class
 class Parser {
-    Lexer lexer;
+public:
+    explicit Parser(const std::string& text);
+    std::unique_ptr<std::vector<std::unique_ptr<AST>>> parse();
 
+private:
+    Lexer lexer;
+    Token currentToken;
 
     void eat(TokenType type);
     std::unique_ptr<AST> factor();
     std::unique_ptr<AST> term();
     std::unique_ptr<AST> expr();
-
-public:
-    Token currentToken;
-    explicit Parser(const std::string& text);
-    std::unique_ptr<AST> parse();
 };
 
 #endif // DEFINITION_H
