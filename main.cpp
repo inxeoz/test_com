@@ -1,4 +1,3 @@
-
 #include "logic.h"
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
@@ -27,8 +26,8 @@ int main(int argc, char* argv[]) {
     buffer << file.rdbuf();
     std::string input = buffer.str();
 
-    Parser Parser(input);
-    auto ast = Parser.parse();
+    Parser parser(input);
+    auto ast = parser.parse();
 
     LLVMContext context;
     Module module("my_module", context);
@@ -39,13 +38,10 @@ int main(int argc, char* argv[]) {
     BasicBlock* entry = BasicBlock::Create(context, "entry", mainFunction);
     builder.SetInsertPoint(entry);
 
-    Value* result = ast->codegen(builder);
-
-    // for (auto expr : ast) {
-    //     //Value* result = expr->codegen(builder);
-    //     // Optionally, print the result or store it for further use.
-    //     printf(expr);
-    // }
+    // Generate code for each expression
+    for (auto& expression : *ast) {
+        expression->codegen(builder);
+    }
 
     // Add printf declaration
     FunctionType* printfType = FunctionType::get(builder.getInt32Ty(), builder.getInt8PtrTy(), true);
@@ -54,11 +50,15 @@ int main(int argc, char* argv[]) {
     // Create format string
     Value* formatStr = builder.CreateGlobalStringPtr("%d\n");
 
-    // Call printf with result
-    builder.CreateCall(printfFunc, {formatStr, result});
+    // Call printf for each expression result
+    for (auto& expression : *ast) {
+        Value* result = expression->codegen(builder);
+        builder.CreateCall(printfFunc, {formatStr, result});
+    }
 
     builder.CreateRet(builder.getInt32(0));
 
+    // Verify and print module
     if (verifyModule(module, &errs())) {
         std::cerr << "Module verification failed!\n";
         return 1;
@@ -67,6 +67,3 @@ int main(int argc, char* argv[]) {
     module.print(outs(), nullptr);
     return 0;
 }
-
-
-
